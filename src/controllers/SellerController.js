@@ -1,20 +1,20 @@
 import ProductModel from "../models/productSchema.js";
+import getCarbonFootprint from "./EmissionController.js";
 
-
-const verifySeller = async(id,userId)=>{
+const verifySeller = async (id, userId) => {
     const product = await ProductModel.findById(id);
 
-        if(!product){
-            const error = new Error("Product not found");
+    if (!product) {
+        const error = new Error("Product not found");
         error.statusCode = 404;
         throw error;
-        }
+    }
 
-        if(product.SellerId.toString() !==userId.toString()){
-            const error = new Error("Not authorized to perform this action");
+    if (product.SellerId.toString() !== userId.toString()) {
+        const error = new Error("Not authorized to perform this action");
         error.statusCode = 401;
         throw error;
-        }
+    }
 }
 export const getProducts = async (req, res) => {
     try {
@@ -27,8 +27,23 @@ export const getProducts = async (req, res) => {
 }
 
 export const createProduct = async (req, res) => {
-    const { Title, Price, Images, EcoPoints, Category, Description, Weight, Height, Width, Quantity, Keywords, Status, Size, Color } = req.body;
+    const { Title, Price, Images, Category, Description, Weight, Height, Width, Quantity, Keywords, Status, Size, Color } = req.body;
+    
+    let carbonFootprint = 0;
+    let ecoPoints = 0;
 
+    try {
+        carbonFootprint = await getCarbonFootprint(Category, Price);
+
+        if (carbonFootprint) {
+            const MAX_ECO_POINTS = 1000;
+            ecoPoints = Math.round(MAX_ECO_POINTS / (1 + carbonFootprint));
+            ecoPoints = Math.min(ecoPoints, MAX_ECO_POINTS);
+        }
+
+    } catch (apiError) {
+        console.error("Error calculating carbon footprint:", apiError.message);
+    }
     try {
         const product = new ProductModel({
             SellerId: req.user._id,
@@ -37,7 +52,8 @@ export const createProduct = async (req, res) => {
             Images,
             Category,
             Description,
-            EcoPoints,
+            EcoPoints: ecoPoints,
+            CarbonFootPrint: carbonFootprint,
             Weight,
             Height,
             Width,
@@ -56,18 +72,18 @@ export const createProduct = async (req, res) => {
     }
 }
 
-export const editProduct =async(req,res)=>{
-    const {id} = req.params;
-    
-    try{
-        await verifySeller(id,req.user._id);
+export const editProduct = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        await verifySeller(id, req.user._id);
         const updatedProduct = await ProductModel.findByIdAndUpdate(
             id,
             req.body,
-            {new:true,runValidators:true}
+            { new: true, runValidators: true }
         )
         res.status(200).json(updatedProduct)
-    }catch (error) {
+    } catch (error) {
         console.error("Error updating product:", error);
         if (error.name === 'CastError') {
             return res.status(400).json({ message: 'Invalid product ID format' });
@@ -76,13 +92,13 @@ export const editProduct =async(req,res)=>{
     }
 }
 
-export const deleteProduct = async(req,res)=>{
-    const {id} = req.params;
-    try{
-        await verifySeller(id,req.user._id);
+export const deleteProduct = async (req, res) => {
+    const { id } = req.params;
+    try {
+        await verifySeller(id, req.user._id);
         await ProductModel.findByIdAndDelete(id);
         res.status(200).json({ message: "Product deleted successfully" });
-    }catch (error) {
+    } catch (error) {
         console.error("Error deleting product:", error);
         if (error.name === 'CastError') {
             return res.status(400).json({ message: 'Invalid product ID format' });
