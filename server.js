@@ -4,6 +4,7 @@ import cors from "cors";
 import connectDB from "./src/config/db.js";
 import authRoutes from "./src/routes/AuthRoutes.js"
 import sellerProducts  from "./src/routes/SellerRoutes.js"
+import productRoutes from "./src/routes/productRoutes.js"
 dotenv.config();
 connectDB();
 
@@ -11,11 +12,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
  
-// for auth
 app.use("/api/auth",authRoutes);
 
 app.use("/api/seller",sellerProducts);
 
+app.use("/api/products", productRoutes);
 
 const PORT = process.env.PORT;
 app.listen(PORT,()=>{
