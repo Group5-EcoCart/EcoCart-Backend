@@ -6,11 +6,15 @@ const userSchema = mongoose.Schema(
         email:{type:String,required:true},
         role:{type:String,required:true},
         password:{type:String,required:true},
+        addresses: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Address'
+        }]
     },
     {timestamps:true}
 );
 userSchema.pre("save",async function(next){
-    if(!this.isModified){
+    if(!this.isModified('password')){
         next();
     }
     const salt = await bcrypt.genSalt(10);
