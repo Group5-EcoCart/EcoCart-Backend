@@ -30,3 +30,11 @@ export const isSeller = (req,res,next)=>{
         res.status(401).json({ message: "Not authorized as a seller" });
     }
 };
+
+export const isBuyer = (req,res,next)=>{
+    if (req.user && req.user.role === 'buyer') {
+        next();
+    } else {
+        res.status(401).json({ message: "Not authorized as a seller" });
+    }
+};
