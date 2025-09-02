@@ -1,6 +1,5 @@
 import {Cart,Wishlist,Payment,Order} from "../models/OrderSchema.js"
 
-// Cart Controller Logic
 export const addToCart = async (req, res) => {
   try {
     const { productId, quantity, mode = 'add' } = req.body;
@@ -62,25 +61,30 @@ export const removeFromCart = async (req, res) => {
   }
 };
 
-// Order Controller Logic
 export const createOrder = async (req, res) => {
-  try {
-    const { products, totalAmount } = req.body;
-    const order = new Order({
-      user: req.user._id,
-      products,
-      totalAmount,
-      status: "Pending"
-    });
-    await order.save();
-    await Cart.findOneAndUpdate(
-      { user: req.user._id },
-      { $set: { products: [] } }
-    );
-    res.status(201).json(order);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const { products, totalAmount } = req.body;
+        const order = new Order({
+            user: req.user._id,
+            products,
+            totalAmount,
+            status: "Pending"
+        });
+        for (const item of products) {
+            await ProductModel.findByIdAndUpdate(item.product, {
+                $inc: { Quantity: -item.quantity }
+            });
+        }
+
+        await order.save();
+        await Cart.findOneAndUpdate(
+            { user: req.user._id },
+            { $set: { products: [] } }
+        );
+        res.status(201).json(order);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 };
 
 export const getOrders = async (req, res) => {
@@ -94,7 +98,6 @@ export const getOrders = async (req, res) => {
   }
 };
 
-// Payment Controller Logic
 export const makePayment = async (req, res) => {
   try {
     const { orderId, amount, method } = req.body;
@@ -132,7 +135,6 @@ export const getPayments = async (req, res) => {
   }
 };
 
-// Wishlist Controller Logic
 export const addToWishlist = async (req, res) => {
   try {
     const { productId } = req.body;

@@ -1,4 +1,5 @@
 import ProductModel from "../models/productSchema.js";
+import {Order} from "../models/OrderSchema.js";
 import getCarbonFootprint from "./EmissionController.js";
 
 const verifySeller = async (id, userId) => {
@@ -106,3 +107,63 @@ export const deleteProduct = async (req, res) => {
         res.status(error.statusCode || 500).json({ message: error.message || "Server error" });
     }
 }
+
+export const getSellerOrders = async (req, res) => {
+    try {
+        const sellerId = req.user._id;
+        const products = await ProductModel.find({ SellerId: sellerId });
+        const productIds = products.map(p => p._id);
+
+        const orders = await Order.find({ "products.product": { $in: productIds } })
+            .populate("products.product")
+            .populate("user", "email");
+
+        let totalSales = 0;
+        const sellerOrders = orders.map(order => {
+            const sellerProductsInOrder = order.products.filter(p => productIds.some(id => id.equals(p.product._id)));
+            let orderTotal = 0;
+            sellerProductsInOrder.forEach(p => {
+                const price = p.product.Price || 0;
+                orderTotal += price * p.quantity;
+            });
+            totalSales += orderTotal;
+            return {
+                ...order.toObject(),
+                products: sellerProductsInOrder,
+                orderTotal
+            };
+        }).filter(order => order.products.length > 0);
+        const totalProfit = totalSales * 0.20;
+
+        res.status(200).json({
+            orders: sellerOrders,
+            totalSales,
+            totalProfit
+        });
+    } catch (error) {
+        console.error("Error fetching seller orders:", error);
+        res.status(500).json({ message: "Server error while fetching orders." });
+    }
+};
+
+export const updateOrderStatus = async (req, res) => {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    try {
+        const order = await Order.findById(orderId).populate("products.product");
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+        const sellerProductInOrder = order.products.some(p => p.product.SellerId.equals(req.user._id));
+        if (!sellerProductInOrder) {
+            return res.status(401).json({ message: "Not authorized to update this order" });
+        }
+
+        order.status = status;
+        await order.save();
+        res.status(200).json(order);
+    } catch (error) {
+        console.error("Error updating order status:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
