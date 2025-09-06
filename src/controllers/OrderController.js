@@ -1,5 +1,5 @@
 import {Cart,Wishlist,Payment,Order} from "../models/OrderSchema.js"
-
+import ProductModel from "../models/productSchema.js";
 export const addToCart = async (req, res) => {
   try {
     const { productId, quantity, mode = 'add' } = req.body;

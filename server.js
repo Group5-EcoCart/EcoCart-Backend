@@ -7,6 +7,7 @@ import sellerProducts  from "./src/routes/SellerRoutes.js";
 import productRoutes from "./src/routes/productRoutes.js";
 import userRoutes from "./src/routes/UserRouts.js";
 import orderRoutes from "./src/routes/OrderRoutes.js";
+import reviewRoutes from "./src/routes/ReviewRoutes.js";
 dotenv.config();
 connectDB();
 
@@ -23,6 +24,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/buyer", orderRoutes);
 
 app.use("/api/user",userRoutes);
+
+app.use("/api/reviews", reviewRoutes);
 const PORT = process.env.PORT;
 app.listen(PORT,()=>{
     console.log(`Server is running on port ${PORT}`);
