@@ -138,3 +138,17 @@ export const deleteReview = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+export const getUserReviews = async (req, res) => {
+    try {
+        const reviews = await ReviewModel.find({ user: req.user._id }).populate('product', 'Title');
+        if (reviews) {
+            res.json(reviews);
+        } else {
+            res.status(404).json({ message: "No reviews found for this user" });
+        }
+    } catch (error) {
+        console.error("Error fetching user reviews:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
