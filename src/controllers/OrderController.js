@@ -90,12 +90,45 @@ export const createOrder = async (req, res) => {
 export const getOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user._id })
-      .populate("products.product", "name price")
+      // Correctly populate all needed fields from the product and address
+      .populate({
+        path: "products.product",
+        select: "Title Price Images EcoPoints" 
+      })
+      .populate("address") // Also populate the address details
       .sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+};
+
+export const cancelOrder = async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id);
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Ensure the user owns this order
+        if (order.user.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: "Not authorized to modify this order" });
+        }
+
+        // Check if the order status is 'Delivered'
+        if (order.status === "Delivered") {
+            return res.status(400).json({ message: "Cannot cancel an order that has already been delivered." });
+        }
+
+        order.status = "Cancelled";
+        await order.save();
+
+        res.status(200).json({ message: "Order has been cancelled successfully.", order });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 };
 
 export const makePayment = async (req, res) => {

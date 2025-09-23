@@ -5,6 +5,7 @@ import {
   getCart,
   removeFromCart,
   createOrder,
+  cancelOrder,
   getOrders,
   makePayment,
   getPayments,
@@ -23,6 +24,7 @@ router.delete("/cart/remove", protect, isBuyer, removeFromCart);
 // Order Routes
 router.post("/orders/create", protect, isBuyer, createOrder);
 router.get("/orders", protect, isBuyer, getOrders);
+router.put("/orders/:id/cancel", protect, isBuyer, cancelOrder);
 
 // Payment Routes
 router.post("/payments/pay", protect, isBuyer, makePayment);
