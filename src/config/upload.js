@@ -1,30 +1,41 @@
-// // backend/upload.js
-// import express from "express";
-// import multer from "multer";
-// import { v2 as cloudinary } from "cloudinary";
+import express from "express";
+import multer from "multer";
+import { v2 as cloudinary } from "cloudinary";
+import streamifier from 'streamifier';
+import { protect } from "../middleware/AuthMiddleware.js";
 
-// const router = express.Router();
-// const storage = multer.memoryStorage();
-// const upload = multer({ storage });
+const router = express.Router();
 
-// cloudinary.config({
-//   cloud_name: "dmduoq4tg",
-//   api_key: "725571562441696",
-//   api_secret: "buVCKvDbYHw501oiJg72GhTBxOI",
-// });
+// NOTE: The cloudinary.config() call has been removed from this file.
 
-// router.post("/upload", upload.single("image"), async (req, res) => {
-//   try {
-//     const b64 = Buffer.from(req.file.buffer).toString("base64");
-//     const dataURI = "data:" + req.file.mimetype + ";base64," + b64;
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
-//     const result = await cloudinary.uploader.upload(dataURI, {
-//       folder: "mern_uploads", // optional
-//     });
-//     res.json({ imageUrl: result.secure_url });
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
+router.post("/upload", protect, upload.array("images", 5), async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: "No images uploaded." });
+    }
 
-// export default router;
+    const uploadPromises = req.files.map(file => {
+        return new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+                { folder: "ecocart_products" },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve({ src: result.secure_url, alt: file.originalname });
+                }
+            );
+            streamifier.createReadStream(file.buffer).pipe(stream);
+        });
+    });
+
+    try {
+        const results = await Promise.all(uploadPromises);
+        res.status(200).json(results);
+    } catch (err) {
+        console.error("Cloudinary Upload Error:", err);
+        res.status(500).json({ message: "Error uploading to Cloudinary.", error: err.message });
+    }
+});
+
+export default router;

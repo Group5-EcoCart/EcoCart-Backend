@@ -1,6 +1,6 @@
 import express from "express";
 import { isSeller,protect } from "../middleware/AuthMiddleware.js";
-import { getProducts,createProduct,editProduct,deleteProduct,getSellerOrders,updateOrderStatus } from "../controllers/SellerController.js";
+import { getProducts,createProduct,editProduct,deleteProduct,getSellerOrders,updateOrderStatus,getDashboardStats, getAnalytics,getSellerReviews } from "../controllers/SellerController.js";
 
 const router = express.Router();
 
@@ -18,5 +18,13 @@ router.route("/orders")
 
 router.route("/orders/:orderId")
   .put(protect, isSeller, updateOrderStatus);
+
+router.route("/dashboard-stats")
+    .get(protect, isSeller, getDashboardStats);
+
+router.route("/analytics")
+    .get(protect, isSeller, getAnalytics);
+router.route("/reviews")
+    .get(protect, isSeller, getSellerReviews);
 
   export default router;

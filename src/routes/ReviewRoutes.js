@@ -1,6 +1,6 @@
 import express from "express";
 import { protect, isBuyer } from "../middleware/AuthMiddleware.js";
-import { createReview, getReviewById, editReview, deleteReview, getUserReviews } from "../controllers/ReviewController.js";
+import { createReview, getReviewById, editReview, deleteReview, getUserReviews,getReviewsByProduct } from "../controllers/ReviewController.js";
 
 const router = express.Router();
 
@@ -9,6 +9,9 @@ router.route("/")
 
 router.route("/user")
     .get(protect, getUserReviews);
+
+router.route("/product/:productId")
+    .get(protect, getReviewsByProduct);
 
 router.route("/:id")
     .get(getReviewById)

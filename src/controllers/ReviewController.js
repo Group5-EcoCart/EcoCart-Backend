@@ -152,3 +152,13 @@ export const getUserReviews = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+export const getReviewsByProduct = async (req, res) => {
+    try {
+        const reviews = await ReviewModel.find({ product: req.params.productId }).populate('user', 'email'); // Populate user's email
+        res.json(reviews);
+    } catch (error) {
+        console.error("Error fetching reviews by product:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
