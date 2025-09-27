@@ -3,7 +3,7 @@ import ProductModel from "../models/productSchema.js";
 
 export const getAllProducts = async (req, res) => {
     try {
-        const products = await ProductModel.find({});
+        const products = await ProductModel.find({ Status: 'Active', Quantity: { $gt: 0 } });
         res.status(200).json(products);
     } catch (error) {
         console.error("Error fetching all products:", error);

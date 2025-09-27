@@ -10,7 +10,9 @@ const userSchema = mongoose.Schema(
         addresses: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Address'
-        }]
+        }],
+        passwordLastChangedAt: { type: Date },
+        profileLastUpdatedAt: { type: Date }
     },
     { timestamps: true }
 );

@@ -2,8 +2,23 @@ import ReviewModel from "../models/ReviewSchema.js";
 import ProductModel from "../models/productSchema.js";
 import { Order } from "../models/OrderSchema.js";
 
+const blocklist = [
+  "damn", "hell", "crap",
+  "idiot", "stupid", "dumb", "fool",
+  "racist_term", "hateful_slur",
+  "free money", "scam", "spam", "click here"
+];
+const containsBlockedWords = (text) => {
+    if (!text) return false;
+    const lowerCaseText = text.toLowerCase();
+    return blocklist.some(word => lowerCaseText.includes(word));
+};
+
 export const createReview = async (req, res) => {
     const { productId, rating, review, images } = req.body;
+    if (containsBlockedWords(review)) {
+        return res.status(400).json({ message: "Your review contains inappropriate language and cannot be posted." });
+    }
 
     try {
         const product = await ProductModel.findById(productId);
@@ -72,6 +87,9 @@ export const getReviewById = async (req, res) => {
 
 export const editReview = async (req, res) => {
     const { rating, review, images } = req.body;
+    if (containsBlockedWords(review)) {
+        return res.status(400).json({ message: "Your review contains inappropriate language and cannot be posted." });
+    }
 
     try {
         const reviewToUpdate = await ReviewModel.findById(req.params.id);

@@ -11,7 +11,8 @@ import {
   getPayments,
   addToWishlist,
   getWishlist,
-  removeFromWishlist
+  removeFromWishlist,
+  createRazorpayOrder
 } from "../controllers/OrderController.js"; // Make sure to use the combined controller
 
 const router = express.Router();
@@ -27,6 +28,7 @@ router.get("/orders", protect, isBuyer, getOrders);
 router.put("/orders/:id/cancel", protect, isBuyer, cancelOrder);
 
 // Payment Routes
+router.post("/orders/razorpay", protect, isBuyer, createRazorpayOrder);
 router.post("/payments/pay", protect, isBuyer, makePayment);
 router.get("/payments", protect, isBuyer, getPayments);
 

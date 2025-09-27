@@ -1,5 +1,6 @@
 import {Cart,Wishlist,Payment,Order} from "../models/OrderSchema.js"
 import ProductModel from "../models/productSchema.js";
+import Razorpay from "razorpay";
 export const addToCart = async (req, res) => {
   try {
     const { productId, quantity, mode = 'add' } = req.body;
@@ -156,6 +157,30 @@ export const makePayment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+export const createRazorpayOrder = async (req, res) => {
+    try {
+        const instance = new Razorpay({
+            key_id: process.env.RAZORPAY_ID_KEY,
+            key_secret: process.env.RAZORPAY_SECRET_KEY,
+        });
+
+        const options = {
+            amount: req.body.amount * 100, // amount in smallest currency unit
+            currency: "INR",
+            receipt: `receipt_order_${new Date().getTime()}`,
+        };
+
+        const order = await instance.orders.create(options);
+
+        if (!order) return res.status(500).send("Some error occured");
+
+        res.json(order);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+};
+
 
 export const getPayments = async (req, res) => {
   try {
