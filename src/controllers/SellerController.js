@@ -3,7 +3,31 @@ import ProductModel from "../models/productSchema.js";
 import {Order} from "../models/OrderSchema.js";
 import getCarbonFootprint from "./EmissionController.js";
 import ReviewModel from "../models/ReviewSchema.js";
+import { sendEmail } from "../utils/emailService.js"; // Make sure this is imported
+import UserModel from "../models/userSchema.js";
 
+const checkStockAndNotify = async (productId, sellerId) => {
+    try {
+        const seller = await UserModel.findById(sellerId);
+        const product = await ProductModel.findById(productId);
+
+        if (!product || !seller) return;
+
+        const LOW_STOCK_THRESHOLD = 5;
+        if (seller.notificationPreferences?.lowStock && product.Quantity > 0 && product.Quantity <= LOW_STOCK_THRESHOLD) {
+            const subject = `Low Stock Alert for ${product.Title}`;
+            const html = `
+                <h1>Low Stock Warning!</h1>
+                <p>Your product <strong>${product.Title}</strong> has a low stock level.</p>
+                <p>Current Quantity: ${product.Quantity}</p>
+                <p>Please consider restocking soon.</p>
+            `;
+            await sendEmail(seller.email, subject, html);
+        }
+    } catch (error) {
+        console.error("Error in checkStockAndNotify:", error);
+    }
+};
 
 export const updateProductStatus = async (req, res) => {
     try {
@@ -65,44 +89,34 @@ export const createProduct = async (req, res) => {
 
     try {
         carbonFootprint = await getCarbonFootprint(Category, Price);
-
         if (carbonFootprint) {
             const MAX_ECO_POINTS = 1000;
             ecoPoints = Math.round(MAX_ECO_POINTS / (1 + carbonFootprint));
             ecoPoints = Math.min(ecoPoints, MAX_ECO_POINTS);
         }
-
     } catch (apiError) {
         console.error("Error calculating carbon footprint:", apiError.message);
     }
+
     try {
         const product = new ProductModel({
             SellerId: req.user._id,
-            Title,
-            Price,
-            Images,
-            Category,
-            Description,
-            EcoPoints: ecoPoints,
-            CarbonFootPrint: carbonFootprint,
-            Weight,
-            Height,
-            Width,
-            Quantity,
-            Keywords,
-            Status,
-            Size,
-            Color,
-            warehouse
+            Title, Price, Images, Category, Description, EcoPoints: ecoPoints, CarbonFootPrint: carbonFootprint,
+            Weight, Height, Width, Quantity, Keywords, Status, Size, Color, warehouse
         });
 
-        const createdProducts = await product.save();
-        return res.status(201).json(createdProducts);
+        const createdProduct = await product.save();
+
+        // --- ADD THIS LINE ---
+        // Instantly check stock after creating the product
+        await checkStockAndNotify(createdProduct._id, req.user._id);
+
+        return res.status(201).json(createdProduct);
     } catch (error) {
         console.error("Error creating product:", error);
         res.status(400).json({ message: "Invalid product data provided.", error: error.message });
     }
-}
+};
 
 export const editProduct = async (req, res) => {
     const { id } = req.params;
@@ -113,8 +127,13 @@ export const editProduct = async (req, res) => {
             id,
             req.body,
             { new: true, runValidators: true }
-        )
-        res.status(200).json(updatedProduct)
+        );
+
+        // --- ADD THIS LINE ---
+        // Instantly check stock after updating the product
+        await checkStockAndNotify(updatedProduct._id, req.user._id);
+
+        res.status(200).json(updatedProduct);
     } catch (error) {
         console.error("Error updating product:", error);
         if (error.name === 'CastError') {
@@ -122,7 +141,7 @@ export const editProduct = async (req, res) => {
         }
         res.status(error.statusCode || 500).json({ message: error.message || "Server error" });
     }
-}
+};
 
 export const deleteProduct = async (req, res) => {
     const { id } = req.params;

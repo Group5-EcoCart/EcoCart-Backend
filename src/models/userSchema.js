@@ -7,10 +7,17 @@ const userSchema = mongoose.Schema(
         role: { type: String, required: true },
         password: { type: String, required: true },
         status: { type: String, enum: ['pending', 'approved', 'denied'], default: 'pending' },
+        // Add these two lines for store information
+        storeName: { type: String, default: '' },
+        storeDescription: { type: String, default: '' },
         addresses: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Address'
         }],
+        notificationPreferences: {
+            newOrders: { type: Boolean, default: true },
+            lowStock: { type: Boolean, default: true }
+        },
         passwordLastChangedAt: { type: Date },
         profileLastUpdatedAt: { type: Date }
     },

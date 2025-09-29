@@ -1,5 +1,7 @@
 import {Cart,Wishlist,Payment,Order} from "../models/OrderSchema.js"
 import ProductModel from "../models/productSchema.js";
+import UserModel from "../models/userSchema.js"; // Import UserModel
+import { sendEmail } from "../utils/emailService.js";
 import Razorpay from "razorpay";
 export const addToCart = async (req, res) => {
   try {
@@ -64,26 +66,66 @@ export const removeFromCart = async (req, res) => {
 
 export const createOrder = async (req, res) => {
     try {
-        const { products, totalAmount } = req.body;
+        const { products, totalAmount, address } = req.body;
         const order = new Order({
             user: req.user._id,
             products,
             totalAmount,
-            status: "Pending"
+            address
         });
+
+        // Process each product in the order
         for (const item of products) {
-            await ProductModel.findByIdAndUpdate(item.product, {
-                $inc: { Quantity: -item.quantity }
-            });
+            // Find the product and decrease its quantity
+            const product = await ProductModel.findByIdAndUpdate(
+                item.product,
+                { $inc: { Quantity: -item.quantity } },
+                { new: true }
+            ).populate('SellerId'); // <-- This is the crucial fix
+
+            // Check if the product and its seller exist
+            if (product && product.SellerId) {
+                const seller = product.SellerId;
+
+                // --- 1. Send New Order Notification ---
+                if (seller.notificationPreferences && seller.notificationPreferences.newOrders) {
+                    const subject = `New Order Received! - #${order._id.toString().slice(-6)}`;
+                    const html = `
+                        <h1>You have a new order!</h1>
+                        <p>An order has been placed for your product: <strong>${product.Title}</strong>.</p>
+                        <p>Quantity: ${item.quantity}</p>
+                        <p>Please log in to your seller dashboard to process it.</p>
+                    `;
+                    // The await keyword ensures the email is sent before proceeding
+                    await sendEmail(seller.email, subject, html);
+                }
+
+                // --- 2. Send Low Stock Alert ---
+                const LOW_STOCK_THRESHOLD = 5;
+                if (seller.notificationPreferences && seller.notificationPreferences.lowStock && product.Quantity <= LOW_STOCK_THRESHOLD) {
+                    const subject = `Low Stock Alert for ${product.Title}`;
+                    const html = `
+                        <h1>Low Stock Warning!</h1>
+                        <p>Your product <strong>${product.Title}</strong> is running low on stock.</p>
+                        <p>Current Quantity: ${product.Quantity}</p>
+                        <p>Please update your inventory soon.</p>
+                    `;
+                    await sendEmail(seller.email, subject, html);
+                }
+            }
         }
 
         await order.save();
+        
+        // Clear the user's cart
         await Cart.findOneAndUpdate(
             { user: req.user._id },
             { $set: { products: [] } }
         );
+
         res.status(201).json(order);
     } catch (err) {
+        console.error("Error creating order:", err); // Added for better debugging
         res.status(500).json({ error: err.message });
     }
 };
