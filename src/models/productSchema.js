@@ -8,6 +8,10 @@ const productSchema = mongoose.Schema(
             required: true,
             ref: 'User'
         },
+        warehouse: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Warehouse'
+        },
         Title: { type: String, required: true },
         Price: { type: Number, required: true },
         Images: [{

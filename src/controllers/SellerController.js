@@ -4,6 +4,34 @@ import {Order} from "../models/OrderSchema.js";
 import getCarbonFootprint from "./EmissionController.js";
 import ReviewModel from "../models/ReviewSchema.js";
 
+
+export const updateProductStatus = async (req, res) => {
+    try {
+        const { orderId, productId } = req.params;
+        const { status } = req.body;
+
+        const order = await Order.findById(orderId);
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const productInOrder = order.products.find(p => p.product.toString() === productId);
+
+        if (!productInOrder) {
+            return res.status(404).json({ message: "Product not found in this order" });
+        }
+
+        productInOrder.status = status;
+        await order.save();
+
+        res.status(200).json({ message: "Product status updated successfully", order });
+
+    } catch (error) {
+        res.status(500).json({ message: "Error updating product status", error: error.message });
+    }
+};
+
 const verifySeller = async (id, userId) => {
     const product = await ProductModel.findById(id);
 
@@ -30,7 +58,7 @@ export const getProducts = async (req, res) => {
 }
 
 export const createProduct = async (req, res) => {
-    const { Title, Price, Images, Category, Description, Weight, Height, Width, Quantity, Keywords, Status, Size, Color } = req.body;
+    const { Title, Price, Images, Category, Description, Weight, Height, Width, Quantity, Keywords, Status, Size, Color, warehouse } = req.body;
     
     let carbonFootprint = 0;
     let ecoPoints = 0;
@@ -64,7 +92,8 @@ export const createProduct = async (req, res) => {
             Keywords,
             Status,
             Size,
-            Color
+            Color,
+            warehouse
         });
 
         const createdProducts = await product.save();
@@ -117,7 +146,13 @@ export const getSellerOrders = async (req, res) => {
         const productIds = products.map(p => p._id);
 
         const orders = await Order.find({ "products.product": { $in: productIds } })
-            .populate("products.product")
+            // --- MODIFICATION: Populate warehouse details for each product ---
+            .populate({
+                path: "products.product",
+                populate: {
+                    path: 'warehouse'
+                }
+            })
             .populate("user", "email");
 
         let totalSales = 0;

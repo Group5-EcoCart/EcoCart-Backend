@@ -22,13 +22,13 @@ const orderSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     products: [
       {
-        // FIX: Changed ref to "products"
         product: { type: mongoose.Schema.Types.ObjectId, ref: "products", required: true },
-        quantity: { type: Number, required: true }
+        quantity: { type: Number, required: true },
+        // Add status to each product
+        status: { type: String, enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"], default: "Pending" }
       }
     ],
     totalAmount: { type: Number, required: true },
-    status: { type: String, enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"], default: "Pending" },
     address: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
     payment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" }
   },

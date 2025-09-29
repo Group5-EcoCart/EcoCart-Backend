@@ -1,6 +1,7 @@
 import express from "express";
 import { isSeller,protect } from "../middleware/AuthMiddleware.js";
-import { getProducts,createProduct,editProduct,deleteProduct,getSellerOrders,updateOrderStatus,getDashboardStats, getAnalytics,getSellerReviews } from "../controllers/SellerController.js";
+import { getProducts,createProduct,editProduct,deleteProduct,getSellerOrders, updateProductStatus,updateOrderStatus,getDashboardStats, getAnalytics,getSellerReviews } from "../controllers/SellerController.js";
+import { getWarehouses, addWarehouse, updateWarehouse, deleteWarehouse } from "../controllers/WarehouseController.js";
 
 const router = express.Router();
 
@@ -26,5 +27,16 @@ router.route("/analytics")
     .get(protect, isSeller, getAnalytics);
 router.route("/reviews")
     .get(protect, isSeller, getSellerReviews);
+
+router.route("/warehouses")
+    .get(protect, isSeller, getWarehouses)
+    .post(protect, isSeller, addWarehouse);
+
+router.route("/warehouses/:id")
+    .put(protect, isSeller, updateWarehouse)
+    .delete(protect, isSeller, deleteWarehouse);
+
+router.route("/orders/:orderId/products/:productId")
+  .put(protect, isSeller, updateProductStatus);
 
   export default router;
