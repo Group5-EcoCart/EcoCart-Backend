@@ -3,6 +3,7 @@ import ProductModel from "../models/productSchema.js";
 import UserModel from "../models/userSchema.js"; // Import UserModel
 import { sendEmail } from "../utils/emailService.js";
 import Razorpay from "razorpay";
+
 export const addToCart = async (req, res) => {
   try {
     const { productId, quantity, mode = 'add' } = req.body;
@@ -76,7 +77,6 @@ export const createOrder = async (req, res) => {
 
         // Process each product in the order
         for (const item of products) {
-            // Find the product and decrease its quantity
             const product = await ProductModel.findByIdAndUpdate(
                 item.product,
                 { $inc: { Quantity: -item.quantity } },
@@ -136,7 +136,7 @@ export const getOrders = async (req, res) => {
       // Correctly populate all needed fields from the product and address
       .populate({
         path: "products.product",
-        select: "Title Price Images EcoPoints" 
+        select: "Title Price Images EcoPoints CarbonFootPrint" 
       })
       .populate("address") // Also populate the address details
       .sort({ createdAt: -1 });
@@ -159,12 +159,11 @@ export const cancelOrder = async (req, res) => {
             return res.status(401).json({ message: "Not authorized to modify this order" });
         }
 
-        // Check if the order status is 'Delivered'
-        if (order.status === "Delivered") {
-            return res.status(400).json({ message: "Cannot cancel an order that has already been delivered." });
-        }
+        // Set all product statuses to "Cancelled"
+        order.products.forEach(p => {
+            p.status = 'Cancelled';
+        });
 
-        order.status = "Cancelled";
         await order.save();
 
         res.status(200).json({ message: "Order has been cancelled successfully.", order });
@@ -176,39 +175,56 @@ export const cancelOrder = async (req, res) => {
 
 export const makePayment = async (req, res) => {
   try {
-    const { orderId, amount, method } = req.body;
+    // FIX: Add transactionId to the destructured body
+    const { orderId, amount, method, transactionId } = req.body;
     const order = await Order.findById(orderId);
+    
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
     if (order.user.toString() !== req.user._id.toString()) {
         return res.status(403).json({ error: "Forbidden: You can only pay for your own orders." });
     }
+
     const payment = new Payment({
       user: req.user._id,
       order: orderId,
       amount,
       method,
-      status: "Success"
+      status: "Success",
+      transactionId: transactionId || null // FIX: Save the transactionId
     });
     await payment.save();
-    order.status = "Processing";
+    
+    // FIX: Link the new payment back to the order itself
+    order.payment = payment._id;
+    
+    // Set all product statuses to "Processing"
+    order.products.forEach(p => {
+        p.status = 'Processing';
+    });
+    
     await order.save();
     res.status(201).json(payment);
   } catch (err) {
+    console.error("Error in makePayment:", err); // Better logging
     res.status(500).json({ error: err.message });
   }
 };
 
 export const createRazorpayOrder = async (req, res) => {
     try {
+      console.log("Incoming body:", req.body);
+      if (!req.body.amount) {
+      return res.status(400).json({ message: "Amount required" });
+    }
         const instance = new Razorpay({
             key_id: process.env.RAZORPAY_ID_KEY,
             key_secret: process.env.RAZORPAY_SECRET_KEY,
         });
 
         const options = {
-            amount: req.body.amount * 100, // amount in smallest currency unit
+            amount: Math.round(req.body.amount * 100), // amount in smallest currency unit
             currency: "INR",
             receipt: `receipt_order_${new Date().getTime()}`,
         };
@@ -219,7 +235,7 @@ export const createRazorpayOrder = async (req, res) => {
 
         res.json(order);
     } catch (error) {
-        res.status(500).send(error);
+         res.status(500).json({ message: error.message });
     }
 };
 

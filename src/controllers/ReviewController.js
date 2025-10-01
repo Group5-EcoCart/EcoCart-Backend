@@ -29,8 +29,12 @@ export const createReview = async (req, res) => {
 
         const deliveredOrder = await Order.findOne({
             user: req.user._id,
-            "products.product": productId,
-            status: "Delivered",
+            products: {
+                $elemMatch: {
+                    product: productId,
+                    status: "Delivered"
+                }
+            }
         });
 
         if (!deliveredOrder) {
